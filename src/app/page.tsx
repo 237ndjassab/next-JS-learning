@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link.js";
 
 export default function Home() {
   return (
@@ -29,12 +30,12 @@ export default function Home() {
               Templates
             </a>{" "}
             or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            <Link
+              href="/dashboard"
               className="font-medium text-zinc-950 dark:text-zinc-50"
             >
-              Learning
-            </a>{" "}
+              Dashboard
+            </Link>{" "}
             center.
           </p>
         </div>

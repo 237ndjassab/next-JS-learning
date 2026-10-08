@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  MERCHANT
+  DRIVER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  ASSIGNED
+  PICKED_UP
+  IN_DELIVERY
+  DELIVERED
+}
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String
+  role       Role      @default(CUSTOMER)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  merchant   Merchant?          // 1-1 : un user MERCHANT possède au plus un commerce
+  orders     Order[]            // commandes passées en tant que client
+  deliveries Delivery[]     
+  @@map("users")
+}
+
+model Merchant {
+  id       String    @id @default(cuid())
+  name     String
+  ownerId  String    @unique    // @unique ⇒ relation 1-1
+  owner    User      @relation(fields: [ownerId], references: [id])
+
+  products Product[]
+  orders   Order[]
+
+  @@map("merchants")
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  name       String
+  priceCents Int                 // prix en centimes : pas d'erreur d'arrondi flottant
+  stock      Int         @default(0)
+  merchantId String
+  merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  items      OrderItem[]
+
+  @@index([merchantId])
+  @@map("products")
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  status     OrderStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  customerId String
+  customer   User        @relation(fields: [customerId], references: [id])
+  merchantId String
+  merchant   Merchant    @relation(fields: [merchantId], references: [id])
+
+  items      OrderItem[]
+  delivery   Delivery?     
+
+  @@index([merchantId, status])
+  @@index([customerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  quantity       Int
+  unitPriceCents Int             // prix figé au moment de la commande
+  orderId        String
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId]) // un même produit ne peut apparaître qu'une fois par commande
+  @@map("order_items")
+}
+
+model Delivery {
+  id        String    @id @default(cuid())
+  orderId   String    @unique
+  order     Order     @relation(fields: [orderId], references: [id])
+  driverId  String?
+  driver    User?      @relation(fields: [driverId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deliveredAt DateTime?
+  pickedUpAt DateTime?
+  @@index([driverId])
+  @@map("deliveries")
+}
