@@ -28,6 +28,7 @@ enum OrderStatus {
   PICKED_UP
   IN_DELIVERY
   DELIVERED
+  CANCELLED
 }
 
 model User {

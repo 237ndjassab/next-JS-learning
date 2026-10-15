@@ -1,8 +1,8 @@
 import { handleRouteError } from "@/app/lib/service/error/handleRouteError";
 import { parseJsonBody } from "@/app/lib/service/error/parseJsonBody";
+import { getMerchantOrders } from "@/app/lib/service/order.service";
 import {
   createOrderService,
-  getMerchantOrders,
 } from "@/app/lib/service/orders";
 import { createOrderSchema } from "@/app/schemas/order";
 import { NextResponse } from "next/server";

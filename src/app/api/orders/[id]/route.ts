@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import {
   deleteOrderById,
-  findOrderById,
-  updateOrderById,
 } from "@/app/lib/service/orders";
 import { updateOrderSchema } from "@/app/schemas/order";
 import { parseJsonBody } from "@/app/lib/service/error/parseJsonBody";
 import { handleRouteError } from "@/app/lib/service/error/handleRouteError";
+import {  findOrderById, updateOrderById } from "@/app/lib/service/order.service";
 
 export const PATCH = async (
   req: Request,
@@ -27,8 +26,9 @@ export const PATCH = async (
         { status: 400 },
       );
     }
+
     const updatedOrder = await updateOrderById(param.id, validations.data, {
-      merchantId: "merchant2",
+      userId: "cmv898dc800048ovsr1ltqpqa",
     });
     return NextResponse.json(
       {
@@ -69,7 +69,7 @@ export const GET = async (
 ) => {
   try {
     const { id } = await params;
-    const order = await findOrderById(id, { merchantId: "merchant2" });
+    const order = await findOrderById(id, { userId: "merchant2" });
     return NextResponse.json(
       {
         success: true,
