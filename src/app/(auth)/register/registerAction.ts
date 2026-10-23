@@ -3,7 +3,7 @@
 import { registerSchema } from "@/app/schemas/register";
 import * as z from "zod";
 
-export const RegisterAction = async (prevState: any, formData: FormData) => {
+export const RegisterAction = async (_prevState: any, formData: FormData) => {
   const validate = registerSchema.safeParse({
     nom: formData.get("nom"),
     email: formData.get("email"),

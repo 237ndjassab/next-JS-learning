@@ -1,12 +1,16 @@
+
 import LoginForm from "@/app/components/common/auth/LoginForm";
+import { getSession } from "@/app/lib/auth/session";
 import { Metadata } from "next";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "login",
   description: "interface de connexion de ImpEx",
 };
-const Login = () => {
+const Login = async () => {
+  if (await getSession()) redirect("/dashboard");
   return (
     <div className="w-[90%] h-[90%] flex flex-row gap-1">
       <div className="w-full h-full flex flex-col items-center py-5 gap-2.5">

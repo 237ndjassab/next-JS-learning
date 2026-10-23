@@ -3,6 +3,8 @@ import { OrderStatus } from "../../../../generated/prisma/enums";
 import { assertTransition } from "../order-state-machine";
 import { prisma } from "../prisma";
 import { ServiceError } from "./error/ServiceError";
+// import { changeOrderStatus } from "./order-status.service";
+import { Actor, orderScopeFor } from "../auth/order-scope";
 
 export type PlaceOrderItem = { productId: string; quantity: number };
 //fonction pour recuperer toutes les commandes
@@ -16,14 +18,14 @@ export const getOrders = async () => {
 
 export const findOrderById = async (
   id: string,
-  currentUser: { userId: string },
+  actor: Actor
 ) => {
   if (!id) throw new ServiceError("l'id de la commande est obligatoire", 400);
-  if (!currentUser) throw new ServiceError("utilisateur absent", 401);
-  if (!currentUser.userId)
+  if (!actor) throw new ServiceError("utilisateur absent", 401);
+  if (!actor.userId)
     throw new ServiceError("l'id de l'utilisateur est absent", 400);
   const order = await prisma.order.findFirst({
-    where: { id, merchantId: currentUser.userId },
+    where: { id, ...orderScopeFor(actor) },
     include: { items: true },
   });
   if (!order)
@@ -35,14 +37,12 @@ export const findOrderById = async (
 };
 
 //fonction pour recuperer toutes les commandes d'un commerçant
-export const getMerchantOrders = async (currentUser: {
-  merchantId: string;
-}) => {
-  if (!currentUser) throw new ServiceError("utilisateur absent", 401);
-  if (!currentUser.merchantId)
-    throw new ServiceError("l'id du marchand est absent", 400);
+export const getMerchantOrders = async (actor: Actor) => {
+  if (!actor) throw new ServiceError("utilisateur absent", 401);
+  if (!actor.userId)
+    throw new ServiceError("l'id de l'utilisateur est absent", 400);
   return prisma.order.findMany({
-    where: { merchantId: currentUser.merchantId },
+    where: { ...orderScopeFor(actor) },
     include: {
       items: true,
     },
@@ -107,7 +107,7 @@ export async function placeOrder(customerId: string, items: PlaceOrderItem[]) {
     }
 
     // Création imbriquée : Order + OrderItems en une écriture cohérente
-    return tx.order.create({
+    const order = await tx.order.create({
       data: {
         customerId,
         merchantId: merchantId!,
@@ -118,6 +118,15 @@ export async function placeOrder(customerId: string, items: PlaceOrderItem[]) {
       },
       include: { items: true },
     });
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        fromStatus: null,
+        toStatus: "PENDING",
+        actorId: customerId,
+      },
+    });
+    return order; // status = PENDING, items inclus
   });
 }
 
@@ -203,19 +212,19 @@ const QUANTITY_EDITABLE: OrderStatus[] = ["PENDING", "CONFIRMED"];
 export const updateOrderById = async (
   id: string,
   changes: OrderUpdate, // avec statut?: OrderStatus
-  currentUser: { userId: string },
+  actor: Actor,
 ) => {
-  if (!currentUser?.userId)
-    throw new ServiceError("utilisateur non authentifié", 401);
+  if (!actor.userId) throw new ServiceError("utilisateur non authentifié", 401);
 
   return prisma.$transaction(async (tx) => {
     // 1. Lecture DANS la transaction, filtrée par propriétaire.
     //    Adapte `userId` au champ réel de ton modèle Order.
+
     const order = await tx.order.findFirst({
-      where: { id, customerId: currentUser.userId },
+      where: { id, ...orderScopeFor(actor) },
       include: { items: true },
     });
-    if (!order) throw new ServiceError("Commande introuvable", 404);
+    if (!order) throw new ServiceError("Order not found", 404); // 404 = on ne révèle pas l'existence
 
     const item = order.items[0];
     if (!item) throw new ServiceError("Commande sans article", 422);
@@ -242,26 +251,17 @@ export const updateOrderById = async (
     }
 
     // 3. Changement de statut, avec verrou optimiste
-    if (changes.statut) {
-      assertTransition(order.status, changes.statut);
-      const { count } = await tx.order.updateMany({
-        where: { id, status: order.status },
-        data: { status: changes.statut },
-      });
-      if (count === 0)
-        throw new ServiceError("Statut modifié entre-temps", 409);
-
-      if (changes.statut === "CANCELLED") {
-        // On boucle sur TOUS les articles (pas seulement items[0]).
-        // `increment` ajoute à la valeur actuelle côté BDD, de façon atomique.
-        for (const it of order.items) {
-          await tx.product.update({
-            where: { id: it.productId },
-            data: { stock: { increment: it.quantity } },
-          });
-        }
-      }
-    }
+    // if (changes.statut) {
+    //   await changeOrderStatus(
+    //     {
+    //       orderId: order.id,
+    //       to: changes.statut,
+    //       actorId: actor.userId,
+    //       actorRole: actor.role,
+    //     },
+    //     tx, // ← la MÊME transaction
+    //   );
+    // }
 
     return tx.order.findUniqueOrThrow({
       where: { id },

@@ -31,9 +31,22 @@ enum OrderStatus {
   CANCELLED
 }
 
+model Session {
+  id        String   @id                 // hash du token (voir ci-dessous), jamais le token brut
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
 model User {
   id         String    @id @default(cuid())
   email      String    @unique
+  passwordHash String
   name       String
   role       Role      @default(CUSTOMER)
   createdAt  DateTime  @default(now())
@@ -41,7 +54,9 @@ model User {
 
   merchant   Merchant?          // 1-1 : un user MERCHANT possède au plus un commerce
   orders     Order[]            // commandes passées en tant que client
-  deliveries Delivery[]     
+  deliveries Delivery[]
+  sessions   Session[]
+  statusChanges OrderStatusHistory[]     
   @@map("users")
 }
 
@@ -83,11 +98,27 @@ model Order {
   merchant   Merchant    @relation(fields: [merchantId], references: [id])
 
   items      OrderItem[]
+  history    OrderStatusHistory[]
   delivery   Delivery?     
 
   @@index([merchantId, status])
   @@index([customerId])
   @@map("orders")
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  fromStatus OrderStatus? // null = création de la commande
+  toStatus   OrderStatus
+  actorId    String?      // null = action système
+  actor      User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  reason     String?      // ex : motif d'annulation
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt]) // "l'historique d'une commande, dans l'ordre"
+  @@map("order_status_history")
 }
 
 model OrderItem {

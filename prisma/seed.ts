@@ -1,11 +1,14 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
+import { hash } from "@node-rs/argon2";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 });
 
+const ownerPassword = "demo123"; // Mot de passe factice pour l'exemple
+const passwordHash = await hash(ownerPassword);
 async function main() {
   const owner = await prisma.user.upsert({
     where: { email: "boulangerie@demo.cm" },
@@ -14,6 +17,7 @@ async function main() {
       email: "boulangerie@demo.cm",
       name: "Aïcha",
       role: "MERCHANT",
+      passwordHash, 
       merchant: {
         create: {
           name: "Boulangerie Aïcha",
@@ -32,13 +36,26 @@ async function main() {
   const customer = await prisma.user.upsert({
     where: { email: "client@demo.cm" },
     update: {},
-    create: { email: "client@demo.cm", name: "Marie", role: "CUSTOMER" },
+    create: { email: "client@demo.cm", name: "Marie", role: "CUSTOMER", passwordHash }, 
   });
 
   const driver = await prisma.user.upsert({
     where: { email: "livreur@demo.cm" },
     update: {},
-    create: { email: "livreur@demo.cm", name: "Paul", role: "DRIVER" },
+    create: { email: "livreur@demo.cm", name: "Paul", role: "DRIVER", passwordHash }, 
+  });
+
+  const admin = await prisma.user.upsert({
+    where: {
+      email: "admin@demo.cm",
+    },
+    update: {},
+    create: {
+      email: "admin@demo.cm",
+      name: "Admin",
+      role: "ADMIN",
+      passwordHash,
+    },
   });
 
   // --- SUITE DE L'EXERCICE ---
@@ -83,7 +100,7 @@ async function main() {
     },
   });
 
-  console.log("Seed OK :", owner.email, customer.email, driver.email);
+  console.log("Seed OK :", owner.email, customer.email, driver.email, admin.email);
   console.log("Commande & Livraison créées :", order.id, delivery.id);
 }
 

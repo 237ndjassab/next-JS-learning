@@ -1,14 +1,13 @@
 "use client";
 
-import { LoginAction } from "@/app/(auth)/login/loginAction";
+import { login, LoginState } from "@/app/(auth)/login/loginAction";
 import Link from "next/link";
 import { useActionState } from "react";
 
+const initialState: LoginState = {};
+
 const LoginForm = () => {
-  const [state, formAction, pending] = useActionState(LoginAction, {
-    success: false,
-    errors: undefined,
-  });
+  const [state, formAction, pending] = useActionState(login, initialState);
   return (
     <div className="w-full h-full py-2.5">
       <form
@@ -17,31 +16,67 @@ const LoginForm = () => {
       >
         <div className="w-full flex flex-col gap-2.5">
           <div className="w-full flex flex-col gap-1">
-            <label htmlFor="nom">nom d&apos;utilisateur ou email</label>
+            <label htmlFor="email">nom d&apos;utilisateur ou email</label>
             <div className="w-full ring-white ring-1 rounded-md overflow-hidden">
-              <input type="text" name="nom" id="nom" className="w-full outline-0 p-2.5" />
+              <input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                id="email"
+                className="w-full outline-0 p-2.5"
+              />
             </div>
-            {state.errors?.nom && (
-              <p className="text-red-500 text-[13px]">{state.errors.nom.errors[0]}</p>
+            {/* {state.errors?.nom && (
+              <p className="text-red-500 text-[13px]">
+                {state.errors.nom.errors[0]}
+              </p>
+            )} */}
+            {state.error && (
+              <p role="alert" className="text-red-600">
+                {state.error}
+              </p>
             )}
           </div>
           <div className="w-full flex flex-col gap-1">
-            <label htmlFor="passwd">Mot de passe</label>
+            <label htmlFor="password">Mot de passe</label>
             <div className="w-full ring-white ring-1 rounded-md overflow-hidden">
-              <input type="password" name="passwd" id="passwd" className="w-full outline-0 p-2.5" />
+              <input
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                id="password"
+                className="w-full outline-0 p-2.5"
+              />
             </div>
-            {state.errors?.passwd && (
-              <p className="text-red-500 text-[13px]">{state.errors.passwd.errors[0]}</p>
+            {state.error && (
+              <p role="alert" className="text-red-600">
+                {state.error}
+              </p>
             )}
           </div>
           <div className="w-full flex flex-row justify-end">
-            <span className="text-orange-300 text-[14px]">Mot de passe oublie</span>
+            <span className="text-orange-300 text-[14px]">
+              Mot de passe oublie
+            </span>
           </div>
         </div>
         <div className="w-full px-2.5 flex flex-col gap-2.5">
-          <button type="submit" className="w-full rounded-md bg-orange-400 p-2.5 text-black hover:bg-orange-500 hover:scale-105 active:scale-100 transition-all duration-200 ease-in">{pending ? "Connexion" : "Confirmer"}</button>
+          <button
+            type="submit"
+            className="w-full rounded-md bg-orange-400 p-2.5 text-black hover:bg-orange-500 hover:scale-105 active:scale-100 transition-all duration-200 ease-in"
+          >
+            {pending ? "Connexion" : "Confirmer"}
+          </button>
           <p className="text-center">
-            Vous n&apos;avez pas de compte ? <Link href="/register" className="text-orange-300 hover:text-orange-400 hover:underline text-base">Creer un compte</Link>
+            Vous n&apos;avez pas de compte ?{" "}
+            <Link
+              href="/register"
+              className="text-orange-300 hover:text-orange-400 hover:underline text-base"
+            >
+              Creer un compte
+            </Link>
           </p>
         </div>
       </form>

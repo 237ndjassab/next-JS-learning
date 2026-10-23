@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
-import {
-  deleteOrderById,
-} from "@/app/lib/service/orders";
+import { deleteOrderById } from "@/app/lib/service/orders";
 import { updateOrderSchema } from "@/app/schemas/order";
 import { parseJsonBody } from "@/app/lib/service/error/parseJsonBody";
 import { handleRouteError } from "@/app/lib/service/error/handleRouteError";
-import {  findOrderById, updateOrderById } from "@/app/lib/service/order.service";
+import {
+  findOrderById,
+  updateOrderById,
+} from "@/app/lib/service/order.service";
+import { requireAnyPermission, requirePermission } from "@/app/lib/guards/require-permission";
 
 export const PATCH = async (
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
   try {
+    const { user } = await requirePermission("order:edit");
     const param = await params;
     const body = await parseJsonBody(req);
     // console.log("thisOrder : ", body);
@@ -28,7 +31,8 @@ export const PATCH = async (
     }
 
     const updatedOrder = await updateOrderById(param.id, validations.data, {
-      userId: "cmv898dc800048ovsr1ltqpqa",
+      userId: user.id, // identité issue de la session en BDD, jamais du client
+      role: user.role, // le service en a besoin : MERCHANT, DRIVER et ADMIN n'ont pas les mêmes règles
     });
     return NextResponse.json(
       {
@@ -68,8 +72,12 @@ export const GET = async (
   { params }: { params: Promise<{ id: string }> },
 ) => {
   try {
+    const { user } = await requireAnyPermission(["order:read:own", "order:read:any"]);
     const { id } = await params;
-    const order = await findOrderById(id, { userId: "merchant2" });
+    const order = await findOrderById(id, {
+      userId: user.id, // identité issue de la session en BDD, jamais du client
+      role: user.role, // le service en a besoin : MERCHANT, DRIVER et ADMIN n'ont pas les mêmes règles
+    });
     return NextResponse.json(
       {
         success: true,

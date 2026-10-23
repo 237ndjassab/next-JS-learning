@@ -1,3 +1,4 @@
+import { requireAnyPermission } from "@/app/lib/guards/require-permission";
 import { handleRouteError } from "@/app/lib/service/error/handleRouteError";
 import { parseJsonBody } from "@/app/lib/service/error/parseJsonBody";
 import { getMerchantOrders } from "@/app/lib/service/order.service";
@@ -9,7 +10,11 @@ import { NextResponse } from "next/server";
 
 export const GET = async () => {
   try {
-    const orders = await getMerchantOrders({ merchantId: "merchant2" });
+    const { user } = await requireAnyPermission(["order:read:own", "order:read:any"]);
+    const orders = await getMerchantOrders({
+      userId: user.id, // identité issue de la session en BDD, jamais du client
+      role: user.role, // le service en a besoin : MERCHANT, DRIVER et ADMIN n'ont pas les mêmes règles
+    });
     return NextResponse.json(
       {
         success: true,
